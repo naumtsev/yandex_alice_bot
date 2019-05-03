@@ -4,11 +4,48 @@ from questions_file import QUESTIONS, STATISTICS_QUESTIONS, Entries, WRONG_NAME,
 
 import random
 
+
+def save_toplist():
+    f = open('toplist.txt', 'w')
+    json.dump(TOPLIST, f)
+    f.close()
+
+def save_users():
+    f = open('users.txt', 'w')
+    json.dump(USERS, f)
+    f.close()
+
+def save_STATISTICS_QUESTIONS():
+    f = open('statistics.txt', 'w')
+    json.dump(STATISTICS_QUESTIONS, f)
+    f.close()
+
+def get_TOPLIST():
+    global TOPLIST
+    f = open('toplist.txt', 'r')
+    TOPLIST = json.loads(f.read())
+    f.close()
+
+def get_USERS():
+    global USERS
+    f = open('users.txt', 'r')
+    USERS = json.loads(f.read())
+    f.close()
+
+def get_STATISTICS_QUESTIONS():
+    global STATISTICS_QUESTIONS
+    f = open('statistics.txt', 'r')
+    STATISTICS_QUESTIONS = json.loads(f.read())
+    f.close()
+
 USERS = dict()
-
-
+TOPLIST = []
+get_USERS()
+get_TOPLIST()
+get_STATISTICS_QUESTIONS()
 
 app = Flask(__name__)
+
 OK_WORDS = ['да', 'ладно', 'хорошо', 'давайте', 'давай', 'начинаем', 'ок', 'ok', 'окей']
 BAD_WORDS= ['не хочу', 'не надо', 'без подсказок', 'без', 'отказываюсь', 'не нужна']
 STOP_WORDS = ['стоп', 'считаем очки', 'фиксируем прибыль']
@@ -18,7 +55,7 @@ RESTART_WORDS = ['игру сначала', 'начать игру сначал�
 string_variant = 'абвг'
 
 
-TOPLIST = []
+
 
 
 @app.route('/post', methods=['POST'])
@@ -79,6 +116,7 @@ def handle_dialog(res, req):
 
         random.shuffle(arr)
         USERS[user_id]['list_of_questions'] = arr
+        save_users()
         return
 
 
@@ -129,6 +167,7 @@ def handle_dialog(res, req):
         'Помощь зала': 'Зрители голосуют за понравившиеся им варианты ответов'
     }
         give_question(res, user_id)
+        save_users()
         return
 
 
@@ -143,6 +182,7 @@ def handle_dialog(res, req):
             USERS[user_id]['game_status'] = 1
             give_question(res, user_id)
             res['response']['text'] = random.choice(WITHOUT_PROMPT)
+            save_users()
             return
 
         if 'доп. жизнь' in user_proposition or 'дополнительная жизнь' in user_proposition or 'доп.жизнь' in user_proposition:
@@ -152,11 +192,13 @@ def handle_dialog(res, req):
                 give_question(res, user_id)
 
                 res['response']['text'] = 'Увы, но вы уже использовали этот бонус! Выберите ответ.'
+
                 return
             USERS[user_id]['question_status'] = 2
             USERS[user_id]['tips'].pop('Доп. жизнь')
             give_question(res, user_id)
             res['response']['text'] = 'Бонус активирован! У вас есть право ошибиться на текущем вопросе!'
+            save_users()
             return
 
         if '50 на 50' in user_proposition:
@@ -179,6 +221,7 @@ def handle_dialog(res, req):
             USERS[user_id]['tips'].pop('50 на 50')
             give_question(res, user_id)
             res['response']['text'] = 'Мы убрали лишние ответы! Делайте выбор!'
+            save_users()
             return
 
 
@@ -188,6 +231,7 @@ def handle_dialog(res, req):
             if 'Звонок другу' not in USERS[user_id]['tips']:
                 give_question(res, user_id)
                 res['response']['text'] = 'Вы уже использовали этот бонус! Выберите ответ.'
+                save_users()
                 return
 
             USERS[user_id]['tips'].pop('Звонок другу')
@@ -198,6 +242,7 @@ def handle_dialog(res, req):
             give_question(res, user_id)
             res['response']['text'] = USERS[user_id]['question_data']['call_friend'].format(random.choice(arr))
             res['response']['text'] += random.choice(TIME_ENDED)
+            save_users()
             return
 
 
@@ -206,6 +251,7 @@ def handle_dialog(res, req):
             if 'Помощь зала' not in USERS[user_id]['tips']:
                 give_question(res, user_id)
                 res['response']['text'] = 'Вы уже использовали эту подсказку! Пора выбирать ответ.'
+                save_users()
                 return
 
             USERS[user_id]['tips'].pop('Помощь зала')
@@ -219,6 +265,7 @@ def handle_dialog(res, req):
 
             give_question(res, user_id)
             res['response']['text'] = text + '\nАнализируйте и делайте ваш выбор!'
+            save_users()
             return
 
     elif USERS[user_id]['game_status'] == 1:
@@ -231,6 +278,8 @@ def handle_dialog(res, req):
         if flag2:
             USERS[user_id]['game_status'] = 4
             res['response']['text'] = '{}, вы набрали {} очков! Под каким именем вас записать в топ-лист?'.format(USERS[user_id]['name'], USERS[user_id]['points'])
+            save_users()
+            save_users()
             return
 
         for w in user_words:
@@ -247,6 +296,7 @@ def handle_dialog(res, req):
             if len(USERS[user_id]['tips']) == 0:
                 give_question(res, user_id)
                 res['response']['text'] = 'Увы, но у вас кончились подсказки.'
+                save_users()
                 return
 
             res['response']['text'] = 'Вам доступны следующие подсказки:\n'
@@ -268,6 +318,7 @@ def handle_dialog(res, req):
                 }
             )
             USERS[user_id]['game_status'] = 3
+            save_users()
             return
 
         else: # Ответ от игрока не получен
@@ -283,7 +334,7 @@ def handle_dialog(res, req):
         for i in range(len(TOPLIST)):
             if TOPLIST[i][0] > points:
                 myind += 1
-        TOPLIST.append((points, nickname))
+        TOPLIST.append([points, nickname])
         res['response']['text'] = 'Вы занимаете {} место! Я записала вас под никнэймом - {}!\n' \
                                   'Вы хотите начать игру сначала? Или может быть посмотреть топ игроков?' \
                                   ''.format(myind, nickname)
@@ -304,6 +355,9 @@ def handle_dialog(res, req):
                 'hide': True
             }
         )
+        save_users()
+        save_STATISTICS_QUESTIONS()
+        save_toplist()
         return
 
     elif USERS[user_id]['game_status'] == 5:
@@ -397,6 +451,7 @@ def handle_dialog(res, req):
 
         res['response']['text'] = \
             '{}, я не совсем поняла вас.'.format(USERS[user_id]['name'])
+        save_users()
         return
 
 
@@ -453,33 +508,37 @@ def give_question(res, user_id):
         'title': 'Стоп',
         'hide': True
     })
-
+    save_users()
     return
 
 def player_give_correct_answer(res, user_id):
     del USERS[user_id]['list_of_questions'][0]
-    STATISTICS_QUESTIONS[USERS[user_id]['question_data']['id']][USERS[user_id]['question_data']['correct_answer']] += 1
+    STATISTICS_QUESTIONS[str(USERS[user_id]['question_data']['id'])][USERS[user_id]['question_data']['correct_answer']] += 1
     USERS[user_id]['points'] += USERS[user_id]['question_data']['cost']
     USERS[user_id]['question_number'] += 1
     USERS[user_id]['count_correct_answers'] += 1
     USERS[user_id]['question_status'] = 1
+    save_STATISTICS_QUESTIONS()
+
     NEW_QUEST = get_question(USERS[user_id]['question_number'], user_id)
     if(NEW_QUEST is None):
         res['response']['text'] = 'И это правильный ответ! Теперь у вас {} очков!\n К сожалению, у нас кончились для вас вопросы. ' \
                                   ''.format(USERS[user_id]['points']) + '\n Под каким именем вас записать в топ-лист?'
         USERS[user_id]['game_status'] = 4
+        save_users()
         return
 
     USERS[user_id]['question_data'] = NEW_QUEST
     give_question(res, user_id)
     res['response']['text'] = random.choice(GOOD_ANSWER) + ' Теперь у вас {} очков!\n'.format(USERS[user_id]['points']) + res['response']['text']
+    save_users()
     return
 
 
 
 
 def give_wrong_answer(res, user_id, myans):
-    STATISTICS_QUESTIONS[USERS[user_id]['question_data']['id']][myans] += 1
+    STATISTICS_QUESTIONS[str(USERS[user_id]['question_data']['id'])][myans] += 1
 
     if USERS[user_id]['question_status'] == 2:
         if myans in USERS[user_id]['question_data']['possible_answers']:
@@ -487,7 +546,7 @@ def give_wrong_answer(res, user_id, myans):
 
         give_question(res, user_id)
         USERS[user_id]['question_status'] = 1
-
+        save_STATISTICS_QUESTIONS()
         res['response']['text'] = 'Увы, но это неверный ответ, но у вас есть ещё одна попытка!'
         return
 
@@ -498,13 +557,20 @@ def give_wrong_answer(res, user_id, myans):
         'title': 'Что дальше?',
         'hide': True
     })
-
+    save_users()
+    save_STATISTICS_QUESTIONS()
     USERS[user_id]['game_status'] = 5
     return
 
 
 def get_statistics(id_quest):
-    return STATISTICS_QUESTIONS[id_quest]
+    return STATISTICS_QUESTIONS[str(id_quest)]
+
+
+
+
+
+
 
 
 if __name__ =='__main__':
