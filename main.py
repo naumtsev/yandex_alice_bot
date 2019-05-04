@@ -5,6 +5,8 @@ from questions_file import QUESTIONS, STATISTICS_QUESTIONS, Entries, WRONG_NAME,
 import random
 
 
+image_id = '1533899/fd3d3d92695f92ccc237'
+
 def save_toplist():
     f = open('toplist.txt', 'w')
     json.dump(TOPLIST, f)
@@ -75,17 +77,52 @@ def main():
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
 
+    user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+    if 'что ты умеешь' in user_proposition or ('помощь' in user_proposition and 'зала' not in user_proposition):
+        tt = 'Игра "Интеллектуальный олимп" рассчитана на проверку вашей эрудиции. Я задаю вам вопросы, а вы на них отвечаете. ' \
+             'Чем больше у вас очков, тем выше ваше место в рэйтинге игроков! Всё очень просто. '
+        if USERS[user_id]['name'] is None:
+            tt += 'Перед началом игры представьтесь предствьтесь пожалуйста.'
+        elif USERS[user_id]['game_status'] == 0:
+            res['response']['buttons'] = []
+
+            res['response']['buttons'].append(
+                {
+                    'title': 'Да',
+                    'hide': True
+                }
+            )
+            tt += 'Начинаем игру?'
+        elif USERS[user_id]['game_status'] == 1:
+            give_question(res, user_id)
+            tt += 'Время выбирать правильный ответ!'
+
+        res['response']['text'] = tt
+        return
+
+
     if req['session']['new']:
-        res['response']['text'] = random.choice(Entries)
+        res['response']['card'] = {}
+        res['response']['card']['type'] = 'BigImage'
+        res['response']['card']['description'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и к ним даю четыре возможных варианта ответа. Перед началом игры представьтесь, пожалуйста.'
+        res['response']['card']['image_id'] = image_id
+        res['response']['text'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и даю 4 варианта ответа к ним. За каждый верный ответ вы получаете определённое количество очков. Ответив неверно, ваши очки сгорают. Чтобы сохранить свой результат скажите "Стоп" в любой момент времени. Перед началом игры представьтесь, пожалуйста.'
+
         USERS[user_id] = dict()
         USERS[user_id]['name'] = None
         return
+        res['response']['text'] = random.choice(Entries)
+
+        return
+
+
 
     if USERS[user_id]['name'] is None:
         name = get_name(req)
         if name is None:
             res['response']['text'] = random.choice(WRONG_NAME)
-
             return
 
         name = name[0].upper() + name[1:].lower()
@@ -120,14 +157,15 @@ def handle_dialog(res, req):
         return
 
 
-    user_words = req['request']['nlu']['tokens']
-    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+
+
 
 
     if 'правила' in user_proposition or 'узнать правила' in user_proposition:
         tt = 'Правила очень простые! За каждый верный ваш ответ вам начисляются очки! ' \
         'После неправильного ответа на вопрос все накопленные вами очки сгорают. ' \
-        'В любой момент игры вы можете сказать "Стоп" и мы сохраним ваш результат в топ-лист нашей игры. ' \
+        'В любой момент игры вы можете сказать "Стоп" и мы сохраним ваш результат. ' \
         'Ну что же, начнём?'
         res['response']['text'] = tt
         res['response']['buttons'] = []
@@ -139,6 +177,7 @@ def handle_dialog(res, req):
             }
         )
         return
+
 
 
     if USERS[user_id]['game_status'] == 0:
@@ -163,7 +202,7 @@ def handle_dialog(res, req):
         USERS[user_id]['tips'] = {
         '50 на 50': 'Остаётся два варианта ответа, один из который правильный',
         'Доп. жизнь': 'В текущем вопросе вам даётся право на ошибку',
-        'Звонок другу': 'Помощь от друга',
+        'Звонок другу': 'Помощь друга',
         'Помощь зала': 'Зрители голосуют за понравившиеся им варианты ответов'
     }
         give_question(res, user_id)
@@ -250,7 +289,7 @@ def handle_dialog(res, req):
             USERS[user_id]['game_status'] = 1
             if 'Помощь зала' not in USERS[user_id]['tips']:
                 give_question(res, user_id)
-                res['response']['text'] = 'Вы уже использовали эту подсказку! Пора выбирать ответ.'
+                res['response']['text'] = 'Вы уже использовали эту подсказку! Пора выбрать ответ.'
                 save_users()
                 return
 
@@ -328,13 +367,22 @@ def handle_dialog(res, req):
 
     elif USERS[user_id]['game_status'] == 4:
         USERS[user_id]['game_status'] = 6
-        nickname = req['request']['original_utterance'].strip().replace('  ', ' ')
+        nickname = req['request']['original_utterance'].strip().replace('  ', ' ')[:15]
         points = USERS[user_id]['points']
         myind = 1
+        flag_now = False
         for i in range(len(TOPLIST)):
-            if TOPLIST[i][0] > points:
-                myind += 1
-        TOPLIST.append([points, nickname])
+            if TOPLIST[i][0] < points:
+                TOPLIST.insert(i, [points, nickname])
+                myind = i + 1
+                flag_now = True
+                break
+
+
+        if not flag_now:
+            TOPLIST.insert(len(TOPLIST) - 1, [points, nickname])
+            myind = len(TOPLIST)
+
         res['response']['text'] = 'Вы занимаете {} место! Я записала вас под никнэймом - {}!\n' \
                                   'Вы хотите начать игру сначала? Или может быть посмотреть топ игроков?' \
                                   ''.format(myind, nickname)
@@ -355,6 +403,7 @@ def handle_dialog(res, req):
                 'hide': True
             }
         )
+
         save_users()
         save_STATISTICS_QUESTIONS()
         save_toplist()
@@ -405,12 +454,11 @@ def handle_dialog(res, req):
 
 
         top = ''
-        TOPLIST.sort(reverse=True)
         if top_flag:
             for i in range(min(len(TOPLIST), 10)):
                 top += str(i + 1) + ') ' + TOPLIST[i][1] + ' - ' + str(TOPLIST[i][0]) + '\n'
 
-            res['response']['text'] = 'Топ игроков на текущее время\n' + top
+            res['response']['text'] = 'Топ игроков игры "Интеллектуальном Олимп"\n' + top
             return
 
         flag_restart = False
@@ -423,7 +471,7 @@ def handle_dialog(res, req):
         if flag_restart:
             if(len(USERS[user_id]['list_of_questions']) == 0):
                 res['response']['text'] = \
-                    '{}, у нас кончились вопросы для вас! Ждём вас в следующий раз у нас в гостях, когда у нас пополнятся вопросы!'.format(USERS[user_id]['name'])
+                    '{}, у нас кончились вопросы для вас! Ждём вас в следующий раз, когда у нас пополнятся вопросы!'.format(USERS[user_id]['name'])
                 USERS[user_id]['game_status'] = 6
                 res['response']['buttons'] = []
                 res['response']['buttons'].append(
@@ -446,6 +494,7 @@ def handle_dialog(res, req):
                     'hide': True
                 }
             )
+
 
             return
 
@@ -475,7 +524,7 @@ def get_question(level, user_id):
 
 def give_question(res, user_id):
     if(len(USERS[user_id]['list_of_questions']) == 0):
-        res['response']['text'] = 'У нас кончились вопросы для вас! Ждём вас в следующий раз у нас в гостях, когда у нас пополнятся вопросы!'
+        res['response']['text'] = 'У нас кончились вопросы для вас! Ждём вас в следующий раз, когда у нас пополнятся вопросы!'
         USERS[user_id]['game_status'] = 5
         return
 
@@ -503,6 +552,13 @@ def give_question(res, user_id):
         'title': 'Подсказка',
         'hide': True
     })
+
+    res['response']['buttons'].append(
+        {
+            'title': 'Правила',
+            'hide': True
+        }
+    )
 
     res['response']['buttons'].append({
         'title': 'Стоп',
