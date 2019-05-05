@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+  <body>
+
+        <main role="main" class="container">
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <center>
+               <table border="1">
+                   <tr>
+                         <th style="padding:10px;"> Место в топе</th>
+                            <th style="padding:10px;"> Ник игрока</th>
+                            <th style="padding:10px;"> Очки </th>
+                           <th style="padding:10px;"> URL </th>
+                     </tr>
+
+                {% for buffer in TOP_USERS %}
+
+                     <tr>
+                         <th style="padding:10px;"> {{buffer[0] + 1}}</th>
+                            <th style="padding:10px;"> {{buffer[1]}}</th>
+                            <th style="padding:10px;"> {{buffer[2]}}</th>
+                           <th style="padding:10px;"> <a href="/delete_top/{{buffer[0]}}"> Удалить</a></th>
+                     </tr>
+                {% endfor %}
+                 </table>
+                </center>
+
+
+    </main>
+
+  </body>
+</html>
