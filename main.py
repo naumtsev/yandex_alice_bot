@@ -564,6 +564,11 @@ def give_question(res, user_id):
         'hide': True
     })
 
+    res['response']['buttons'].append({
+        'title': 'Стоп',
+        'hide': True
+    })
+
     res['response']['buttons'].append(
         {
             'title': 'Правила',
@@ -571,10 +576,7 @@ def give_question(res, user_id):
         }
     )
 
-    res['response']['buttons'].append({
-        'title': 'Стоп',
-        'hide': True
-    })
+
     save_users()
     return
 
