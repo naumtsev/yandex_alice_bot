@@ -650,7 +650,7 @@ def index():
 def delete_top(id):
     del TOPLIST[int(id)]
     save_toplist()
-    return redirect('/')
+    return redirect('/admin_page')
 
 
 
