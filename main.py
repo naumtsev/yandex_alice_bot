@@ -1,11 +1,17 @@
-from flask import Flask, request
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+from flask import Flask, request, render_template, redirect
 import json
-from questions_file import QUESTIONS, STATISTICS_QUESTIONS, Entries, WRONG_NAME, START_GAME, UNDERSTAND_START_GAME, WITHOUT_PROMPT, TIME_ENDED, GOOD_ANSWER, GAME_OVER
+from questions_file import QUESTIONS, Entries, WRONG_NAME, START_GAME, UNDERSTAND_START_GAME, WITHOUT_PROMPT, TIME_ENDED, GOOD_ANSWER, GAME_OVER
 
 import random
 
 
-image_id = '1533899/fd3d3d92695f92ccc237'
+image_id = '1533899/eab11fdf307e25539201' #'1533899/fd3d3d92695f92ccc237'
+
+
+
 
 def save_toplist():
     f = open('toplist.txt', 'w')
@@ -46,15 +52,20 @@ get_USERS()
 get_TOPLIST()
 get_STATISTICS_QUESTIONS()
 
+
 app = Flask(__name__)
 
 OK_WORDS = ['да', 'ладно', 'хорошо', 'давайте', 'давай', 'начинаем', 'ок', 'ok', 'окей']
 BAD_WORDS= ['не хочу', 'не надо', 'без подсказок', 'без', 'отказываюсь', 'не нужна']
 STOP_WORDS = ['стоп', 'считаем очки', 'фиксируем прибыль']
-TOP_LIST_WORDS = ['топ-лист', 'топ лист', 'список топ', 'топ игроков']
+TOP_LIST_WORDS = ['топ-лист', 'топ лист', 'список топ', 'топ игроков', 'топ']
 RESTART_WORDS = ['игру сначала', 'начать игру сначала', 'заного', 'рестарт', 'ещё попытку']
 
 string_variant = 'абвг'
+
+
+
+
 
 
 
@@ -367,7 +378,7 @@ def handle_dialog(res, req):
 
     elif USERS[user_id]['game_status'] == 4:
         USERS[user_id]['game_status'] = 6
-        nickname = req['request']['original_utterance'].strip().replace('  ', ' ')[:15]
+        nickname = req['request']['original_utterance'].strip().replace('  ', ' ')[:20]
         points = USERS[user_id]['points']
         myind = 1
         flag_now = False
@@ -380,7 +391,7 @@ def handle_dialog(res, req):
 
 
         if not flag_now:
-            TOPLIST.insert(len(TOPLIST) - 1, [points, nickname])
+            TOPLIST.insert(len(TOPLIST), [points, nickname])
             myind = len(TOPLIST)
 
         res['response']['text'] = 'Вы занимаете {} место! Я записала вас под никнэймом - {}!\n' \
@@ -458,7 +469,7 @@ def handle_dialog(res, req):
             for i in range(min(len(TOPLIST), 10)):
                 top += str(i + 1) + ') ' + TOPLIST[i][1] + ' - ' + str(TOPLIST[i][0]) + '\n'
 
-            res['response']['text'] = 'Топ игроков игры "Интеллектуальном Олимп"\n' + top
+            res['response']['text'] = 'Топ игроков игры "Интеллектуальный Олимп"\n' + top
             return
 
         flag_restart = False
@@ -625,7 +636,19 @@ def get_statistics(id_quest):
 
 
 
+@app.route('/admin_page', methods=['GET'])
+def index():
+    NEW_ARR = []
+    for i in range(len(TOPLIST)):
+        NEW_ARR.append([i, TOPLIST[i][1], TOPLIST[i][0]])
 
+    return render_template('delete_top.html', TOP_USERS = NEW_ARR)
+
+@app.route('/delete_top/<id>', methods=['GET'])
+def delete_top(id):
+    del TOPLIST[int(id)]
+    save_toplist()
+    return redirect('/')
 
 
 
