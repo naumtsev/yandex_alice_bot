@@ -529,7 +529,8 @@ def get_question(level, user_id):
     if(len(USERS[user_id]['list_of_questions']) == 0):
         return None
     need_id = USERS[user_id]['list_of_questions'][0]
-    return  QUESTIONS[need_id]
+    h = QUESTIONS[need_id].copy()
+    return h
 
 
 
@@ -656,6 +657,3 @@ def delete_top(id):
 
 if __name__ =='__main__':
     app.run()
-
-
-
