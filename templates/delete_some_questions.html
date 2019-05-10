@@ -8,20 +8,20 @@
   <body>
 
         <main role="main" class="container">
+                     <br/>
             <br/>
+            <a href="/add_question"> Добавить новый вопрос</a>
             <br/>
-            <a href="/add_new_question"> Добавить новый вопрос</a>
-            <br/>
-             <a href="/delete_some_questions"> Посмотреть вопросы</a>
+             <a href="/questions"> Посмотреть вопросы</a>
                <br/>
-             <a href="/admin_page"> Топ игроков</a>
+             <a href="/toplist"> Топ игроков</a>
             <br/>
             <br/>
 
             {% for name_category, ind, questions in questions_ %}
                <details> <summary> <label style="font-size: 25px"> {{name_category}} </label></summary>
 
-                {% for id, text, a_var, b_var, c_var, d_var, s1, s2, s3, s4, tip, correct_answer, level, points in questions %}
+                {% for id, cat, text, a_var, b_var, c_var, d_var, s1, s2, s3, s4, tip, correct_answer, level, points in questions %}
                    <div style="border: 2px solid black;padding: 5px;">
 
                     <h5>Номер вопроса: {{id}} || Правильный ответ: {{correct_answer}} </h5>
@@ -39,8 +39,8 @@
                         <h6> Стоимость: {{points}}</h6>
                        <h6> Подсказка "Звонок другу": {{tip}}</h6>
 
-                        <a href="/delete_question/{{ind}}/{{id}}"> Удалить </a>
-                           <a href="/update_question/{{ind}}/{{id}}"> Редактировать </a>
+                        <a href="/delete_question/{{id}}"> Удалить </a>
+                           <a href="/update_question/{{id}}"> Редактировать </a>
                        </div>
                 <br/>
                 {% endfor%}

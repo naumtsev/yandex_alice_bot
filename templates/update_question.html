@@ -8,16 +8,15 @@
   <body>
 
         <main role="main" class="container">
+                     <br/>
             <br/>
+            <a href="/add_question"> Добавить новый вопрос</a>
             <br/>
-            <a href="/add_new_question"> Добавить новый вопрос</a>
-            <br/>
-             <a href="/delete_some_questions"> Посмотреть вопросы</a>
+             <a href="/questions"> Посмотреть вопросы</a>
                <br/>
-             <a href="/admin_page"> Топ игроков</a>
+             <a href="/toplist"> Топ игроков</a>
             <br/>
             <br/>
-
 
             <h5> Категории: </h5>
                 {% for i in categories %}
@@ -47,8 +46,8 @@
 
 
             <tr>
-               <th> Category: <th/>
-                <th style="font-size:15px;">   {{ now_category }} <th/>
+                <th> {{ form.category.label }} <th/>
+                <th> {{ form.category }} <th/>
             </tr>
 
 
