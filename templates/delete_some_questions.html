@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+  <body>
+
+        <main role="main" class="container">
+            <br/>
+            <br/>
+            <a href="/add_new_question"> Добавить новый вопрос</a>
+            <br/>
+             <a href="/delete_some_questions"> Посмотреть вопросы</a>
+               <br/>
+             <a href="/admin_page"> Топ игроков</a>
+            <br/>
+            <br/>
+
+            {% for name_category, ind, questions in questions_ %}
+               <details> <summary> <label style="font-size: 25px"> {{name_category}} </label></summary>
+
+                {% for id, text, a_var, b_var, c_var, d_var, s1, s2, s3, s4, tip, correct_answer, level, points in questions %}
+                   <div style="border: 2px solid black;padding: 5px;">
+
+                    <h5>Номер вопроса: {{id}} || Правильный ответ: {{correct_answer}} </h5>
+                       <h6> {{text}} </h6>
+
+                       <h7> А) {{a_var}}  </h7>
+                       <br/>
+                         <h7> Б) {{b_var}}  </h7>
+                       <br/>
+
+                         <h7> В) {{c_var}}  </h7>
+                       <br/>
+                         <h7> Г) {{d_var}}  </h7>
+                        <br/>
+                        <h6> Стоимость: {{points}}</h6>
+                       <h6> Подсказка "Звонок другу": {{tip}}</h6>
+
+                        <a href="/delete_question/{{ind}}/{{id}}"> Удалить </a>
+                           <a href="/update_question/{{ind}}/{{id}}"> Редактировать </a>
+                       </div>
+                <br/>
+                {% endfor%}
+                <br/>
+                      </details>
+            {% endfor %}
+
+
+
+    </main>
+
+  </body>
+</html>

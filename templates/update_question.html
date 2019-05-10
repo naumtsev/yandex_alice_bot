@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+  <body>
+
+        <main role="main" class="container">
+            <br/>
+            <br/>
+            <a href="/add_new_question"> Добавить новый вопрос</a>
+            <br/>
+             <a href="/delete_some_questions"> Посмотреть вопросы</a>
+               <br/>
+             <a href="/admin_page"> Топ игроков</a>
+            <br/>
+            <br/>
+
+
+            <h5> Категории: </h5>
+                {% for i in categories %}
+                <h6>{{i}} - {{categories[i]}} </h6>
+
+                {% endfor%}
+
+
+            <br/>
+
+        <style>
+            th{
+                padding: 5px;
+            }
+        </style>
+
+            {% if code_id == 3%}
+                <h4 style="color:red"> Что-то пошло не по плану</h4>
+            {% endif %}
+
+            <a href="https://pastebin.com/jkbPs65T"> Примеры звонков другу</a>
+            <br/>
+           <form action="" method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+            <table border="1">
+
+
+            <tr>
+               <th> Category: <th/>
+                <th style="font-size:15px;">   {{ now_category }} <th/>
+            </tr>
+
+
+            <tr>
+                <th> {{ form.text.label }} <th/>
+                <th> {{ form.text(size=56) }} <th/>
+
+            </tr>
+
+           <tr>
+                <th> {{ form.tip.label }} <th/>
+                <th> {{ form.tip(size=56) }} <th/>
+            </tr>
+
+                     <tr>
+                <th> {{ form.points.label }} <th/>
+                <th> {{ form.points }} <th/>
+            </tr>
+
+                    <tr>
+                <th> {{ form.a_var.label }} <th/>
+                <th> {{ form.a_var(size=56) }} <th/>
+
+            </tr>
+
+
+
+                    <tr>
+                <th> {{ form.b_var.label }} <th/>
+                <th> {{ form.b_var(size=56) }} <th/>
+            </tr>
+
+                               <tr>
+                <th> {{ form.c_var.label }} <th/>
+                <th> {{ form.c_var(size=56) }} <th/>
+            </tr>
+
+                                                   <tr>
+                <th> {{ form.d_var.label }} <th/>
+                <th> {{ form.d_var(size=56) }} <th/>
+            </tr>
+
+                                                               <tr>
+                <th> {{ form.correct_answer.label }} <th/>
+                <th> {{ form.correct_answer }} <th/>
+            </tr>
+
+                                                                               <tr>
+                <th> {{ form.level.label }} <th/>
+                <th> {{ form.level }} <th/>
+            </tr>
+
+            </table>
+               <br/>
+                <p>{{ form.submit() }}</p>
+
+    </form>
+
+
+
+
+
+
+    </main>
+
+  </body>
+</html>
