@@ -30,8 +30,6 @@ def get_TOPLIST():
     f.close()
 
 
-
-get_USERS()
 get_TOPLIST()
 
 app = Flask(__name__)
@@ -124,12 +122,19 @@ def user_give_her_name(user_id, res, req):
 
     name = name[0].upper() + name[1:].lower()
     USERS[user_id]['name'] = name
-
+    ALL = []
     for id_category in categories:
         if id_category in USERS[user_id]:
             continue
         else:
-            USERS[user_id][id_category] = get_list_question(id_category)
+            BUFF = get_list_question(id_category)
+            random.shuffle(BUFF)
+            USERS[user_id][id_category] = BUFF
+            ALL += USERS[user_id][id_category]
+
+    #Супер-викторина
+    random.shuffle(ALL)
+    USERS[user_id]['7'] = ALL
 
     give_categories(res, user_id)
     res['response']['text'] = random.choice(CHOOSE_CATEGORY).format(USERS[user_id]['name']) + '\n' + res['response']['text']
@@ -211,9 +216,12 @@ def give_info_new_user(res, user_id):
 
 def user_choose_category(res, req, user_id):
     user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
     USER_CATEGORY = None
+
     for id_category in categories:
-        if categories[id_category].lower() in user_words:
+        if categories[id_category].lower() in user_proposition:
             USER_CATEGORY = id_category
             break
 
@@ -238,6 +246,8 @@ def user_choose_category(res, req, user_id):
     give_question(res, user_id)
 
     res['response']['text'] = 'Итак, вы выбрали категорию "{}"!\n'.format(categories[USER_CATEGORY]) +  get_text_question(user_id)
+
+
     give_question_buttons(res, user_id)
     USERS[user_id]['game_status'] = 2
 
@@ -255,34 +265,36 @@ def get_question(res, user_id):
     if len(USERS[user_id][my_category]) == 0:
         return None
 
-    USERS[user_id]['question'] = get_data_question(my_category, USERS[user_id][my_category][0])
+    USERS[user_id]['question'] = get_data_question(USERS[user_id][my_category][0])
     del USERS[user_id][my_category][0]
     return USERS[user_id]['question']
 
 
-def get_data_question(category, id_question):
-    QUEST = QUESTIONS.get(category, id_question)
+def get_data_question(id_question):
+    QUEST = QUESTIONS.get(id_question)
     question_dict = dict()
+
+
     question_dict['id'] = id_question
-    question_dict['category'] = category
-    question_dict['text_question'] = QUEST[1]
+    question_dict['category'] = QUEST[1]
+    question_dict['text_question'] = QUEST[2]
 
     question_dict['possible'] = dict()
-    question_dict['possible']['А'] = QUEST[2]
-    question_dict['possible']['Б'] = QUEST[3]
-    question_dict['possible']['В'] = QUEST[4]
-    question_dict['possible']['Г'] = QUEST[5]
+    question_dict['possible']['А'] = QUEST[3]
+    question_dict['possible']['Б'] = QUEST[4]
+    question_dict['possible']['В'] = QUEST[5]
+    question_dict['possible']['Г'] = QUEST[6]
 
     question_dict['statistics'] = dict()
-    question_dict['statistics']['А'] = QUEST[6]
-    question_dict['statistics']['Б'] = QUEST[7]
-    question_dict['statistics']['В'] = QUEST[8]
-    question_dict['statistics']['Г'] = QUEST[9]
+    question_dict['statistics']['А'] = QUEST[7]
+    question_dict['statistics']['Б'] = QUEST[8]
+    question_dict['statistics']['В'] = QUEST[9]
+    question_dict['statistics']['Г'] = QUEST[10]
 
-    question_dict['call_friend'] = QUEST[10]
-    question_dict['correct_answer'] = QUEST[11]
-    question_dict['level'] = QUEST[12]
-    question_dict['points'] =  QUEST[13]
+    question_dict['call_friend'] = QUEST[11]
+    question_dict['correct_answer'] = QUEST[12]
+    question_dict['level'] = QUEST[13]
+    question_dict['points'] = QUEST[14]
     return question_dict
 
 
@@ -337,9 +349,6 @@ def check_user_answer(res, req, user_id):
         give_result_and_ask_nickname(res, user_id)
         return
 
-
-
-
     if 'подсказк' in user_proposition or 'подскаж' in user_proposition:
         give_hint(res, req, user_id)
         return
@@ -359,9 +368,8 @@ def check_user_answer(res, req, user_id):
 
 
 def player_give_correct_answer(res, user_id, w):
-    update_statistics(USERS[user_id]['question']['category'], USERS[user_id]['question']['id'], w, 1)
+    update_statistics(USERS[user_id]['question']['id'], w, 1)
     USERS[user_id]['points'] += USERS[user_id]['question']['points']
-
     NEW_QUEST = get_question(res, user_id)
     USERS[user_id]['count_wrong'] = 0
 
@@ -383,7 +391,7 @@ def player_give_correct_answer(res, user_id, w):
 
 
 def player_give_wrong_answer(res, user_id, w):
-    update_statistics(USERS[user_id]['question']['category'], USERS[user_id]['question']['id'], w, 1)
+    update_statistics(USERS[user_id]['question']['id'], w, 1)
     if USERS[user_id]['count_wrong']:
         if w in USERS[user_id]['question']['possible']:
             USERS[user_id]['question']['possible'].pop(w.upper())
@@ -803,8 +811,8 @@ def check_for_user_give_tip(res, req, user_id):
     return
 
 
-def update_statistics(category, question_id, symbol, delta):
-    QUESTIONS.update_question_statistics(category, question_id, symbol, delta)
+def update_statistics(question_id, symbol, delta):
+    QUESTIONS.update_question_statistics(question_id, symbol, delta)
 
 
 def give_result_and_ask_nickname(res, user_id):
@@ -816,7 +824,7 @@ def give_result_and_ask_nickname(res, user_id):
 
 
 
-@app.route('/admin_page', methods=['GET'])
+@app.route('/toplist', methods=['GET'])
 def index():
     NEW_ARR = []
     for i in range(len(TOPLIST)):
@@ -829,11 +837,11 @@ def index():
 def delete_top(id):
     del TOPLIST[int(id)]
     save_toplist()
-    return redirect('/admin_page')
+    return redirect('/toplist')
 
 
-@app.route('/delete_some_questions', methods=['GET'])
-def delete_some_questions():
+@app.route('/questions', methods=['GET'])
+def questions_page():
     DATA = []
     for i in categories:
         ALL = QUESTIONS.get_all_by_category(i)
@@ -841,16 +849,17 @@ def delete_some_questions():
 
     return render_template('delete_some_questions.html', questions_ = DATA)
 
-@app.route('/delete_question/<ind>/<id>', methods=['GET'])
-def del_quest(ind, id):
-    try:
-        category_del = int(ind)
-        id_del = int(id)
-        QUESTIONS.delete_question_by_category_and_id(category_del, id)
-    except:
-        return redirect('/delete_some_questions')
 
-    return redirect('/delete_some_questions')
+
+
+@app.route('/delete_question/<id>', methods=['GET'])
+def del_quest(id):
+    try:
+        id_del = int(id)
+        QUESTIONS.delete_question_by_id(id)
+    except:
+        return redirect('/questions')
+    return redirect('/questions')
 
 
 
@@ -889,12 +898,14 @@ class ADD_NEW_QUESTION(FlaskForm):
 
     submit = SubmitField('Отправить')
 
+
 @app.route('/add_new_question', methods=['GET', 'POST'])
+@app.route('/add_question', methods=['GET', 'POST'])
 def add_new_question():
     form = ADD_NEW_QUESTION()
     if form.validate_on_submit():
         try:
-            category = int(form.category.data)
+            category = form.category.data
             text = form.text.data.strip()
             tip = form.tip.data.strip()
             points = int(form.points.data)
@@ -903,22 +914,12 @@ def add_new_question():
             b_var = form.b_var.data.strip()
             c_var = form.c_var.data.strip()
             d_var = form.d_var.data.strip()
-
             correct_answer = form.correct_answer.data.strip()
-
-            flag = False
-            for i in string_variant:
-                if i in correct_answer:
-                    flag = True
-                    break
-
-            if not flag or len(correct_answer) > 1:
-                raise TypeError
-
-
             level = int(form.level.data)
+
+
             QUESTIONS.insert_by_category(category, text, a_var, b_var, c_var, d_var, tip, correct_answer,level, points)
-            return redirect('/delete_some_questions')
+            return redirect('/questions')
         except:
             return render_template('add_new_quest.html', form=form, categories=categories, code_id=3)
 
@@ -931,8 +932,7 @@ class UPDATE_QUESTION_FORM(FlaskForm):
         for i in categories:
             cat.append((str(i), categories[i]))
 
-        #category = SelectField('Category:',  choices = cat)
-
+        category = SelectField('Category:',  choices = cat)
         text = StringField('Text:',  validators=[])
         tip = StringField('Звонок другу:', validators=[])
 
@@ -959,29 +959,29 @@ class UPDATE_QUESTION_FORM(FlaskForm):
 
 
 
-@app.route('/update_question/<ind>/<id>', methods=['GET', 'POST'])
-def update_question_f(ind, id):
+@app.route('/update_question/<id>', methods=['GET', 'POST'])
+def update_question_f(id):
+    id_ = id
 
-    category_ = int(ind)
-    id_ = int(id)
-    name_category = categories[str(ind)]
-
-    quest = QUESTIONS.get(category_, id_)
-
-    #form = UPDATE_QUESTION_FORM(name_category, quest[1], quest[10], quest[13],quest[3], quest[4],quest[5],quest[6], quest[11], quest[12])
+    quest = QUESTIONS.get(id_)
+    print(quest[1])
     form = UPDATE_QUESTION_FORM(
-    #category = ind,
-    text = quest[1],
-    tip = quest[10],
-    points = quest[13],
-    a_var = quest[2],
-    b_var = quest[3],
-    c_var = quest[4],
-    d_var = quest[5],
-    correct_answer = quest[11],
-    level = quest[12]
+    category = quest[1],
+    text = quest[2],
+    tip = quest[11],
+    points = quest[14],
+    a_var = quest[3],
+    b_var = quest[4],
+    c_var = quest[5],
+    d_var = quest[6],
+    correct_answer = quest[12],
+    level = quest[13]
     )
+
     if form.validate_on_submit():
+        category = form.category.data
+        if category == categories[quest[1]]:
+            category = quest[1]
         text = form.text.data
         call_friend = form.tip.data
         points = form.points.data
@@ -991,9 +991,11 @@ def update_question_f(ind, id):
         d = form.d_var.data
         correct_ans = form.correct_answer.data
         level = form.level.data
-        QUESTIONS.update_question(category_, id, text, call_friend, points, a, b, c, d, correct_ans,level)
-        return redirect('/delete_some_questions')
-    return render_template('update_question.html', form=form, question_=quest, categories=categories, now_category=name_category)
+        QUESTIONS.update_question(category, id, text, call_friend, points, a, b, c, d, correct_ans,level)
+        return redirect('/questions')
+    return render_template('update_question.html', form=form, question_=quest, categories=categories)
+
+
 
 
 
