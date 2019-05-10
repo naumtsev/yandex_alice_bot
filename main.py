@@ -1,31 +1,26 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from wtforms import StringField, SubmitField, TextAreaField, PasswordField, SelectField
+from wtforms.widgets import TextArea, TextInput
+from wtforms.validators import DataRequired, Email
 
 from flask import Flask, request, render_template, redirect
 import json
-from questions_file import QUESTIONS, Entries, WRONG_NAME, START_GAME, UNDERSTAND_START_GAME, WITHOUT_PROMPT, TIME_ENDED, GOOD_ANSWER, GAME_OVER
-
 import random
+from different_functions import *
+from DIFFERENT_TEXT import *
+from database_cfg import *
+
+image_id = '1533899/eab11fdf307e25539201'
 
 
-image_id = '1533899/eab11fdf307e25539201' #'1533899/fd3d3d92695f92ccc237'
-
-
+USERS = dict()
+TOPLIST = []
 
 
 def save_toplist():
     f = open('toplist.txt', 'w')
     json.dump(TOPLIST, f)
-    f.close()
-
-def save_users():
-    f = open('users.txt', 'w')
-    json.dump(USERS, f)
-    f.close()
-
-def save_STATISTICS_QUESTIONS():
-    f = open('statistics.txt', 'w')
-    json.dump(STATISTICS_QUESTIONS, f)
     f.close()
 
 def get_TOPLIST():
@@ -34,41 +29,19 @@ def get_TOPLIST():
     TOPLIST = json.loads(f.read())
     f.close()
 
-def get_USERS():
-    global USERS
-    f = open('users.txt', 'r')
-    USERS = json.loads(f.read())
-    f.close()
 
-def get_STATISTICS_QUESTIONS():
-    global STATISTICS_QUESTIONS
-    f = open('statistics.txt', 'r')
-    STATISTICS_QUESTIONS = json.loads(f.read())
-    f.close()
 
-USERS = dict()
-TOPLIST = []
 get_USERS()
 get_TOPLIST()
-get_STATISTICS_QUESTIONS()
-
 
 app = Flask(__name__)
+
 
 OK_WORDS = ['да', 'ладно', 'хорошо', 'давайте', 'давай', 'начинаем', 'ок', 'ok', 'окей']
 BAD_WORDS= ['не хочу', 'не надо', 'без подсказок', 'без', 'отказываюсь', 'не нужна']
 STOP_WORDS = ['стоп', 'считаем очки', 'фиксируем прибыль']
 TOP_LIST_WORDS = ['топ-лист', 'топ лист', 'список топ', 'топ игроков', 'топ']
-RESTART_WORDS = ['игру сначала', 'начать игру сначала', 'заного', 'рестарт', 'ещё попытку']
-
-string_variant = 'абвг'
-
-
-
-
-
-
-
+RESTART_WORDS = ['игру сначала', 'начать игру сначала', 'заного', 'рестарт', 'ещё попытку', 'попытк']
 
 
 @app.route('/post', methods=['POST'])
@@ -87,554 +60,758 @@ def main():
 
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
-
     user_words = req['request']['nlu']['tokens']
     user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
 
-    if 'что ты умеешь' in user_proposition or ('помощь' in user_proposition and 'зала' not in user_proposition):
-        tt = 'Игра "Интеллектуальный олимп" рассчитана на проверку вашей эрудиции. Я задаю вам вопросы, а вы на них отвечаете. ' \
-             'Чем больше у вас очков, тем выше ваше место в рэйтинге игроков! Всё очень просто. '
-        if USERS[user_id]['name'] is None:
-            tt += 'Перед началом игры представьтесь предствьтесь пожалуйста.'
-        elif USERS[user_id]['game_status'] == 0:
-            res['response']['buttons'] = []
-
-            res['response']['buttons'].append(
-                {
-                    'title': 'Да',
-                    'hide': True
-                }
-            )
-            tt += 'Начинаем игру?'
-        elif USERS[user_id]['game_status'] == 1:
-            give_question(res, user_id)
-            tt += 'Время выбирать правильный ответ!'
-
-        res['response']['text'] = tt
+    if 'что ты умеешь' in user_proposition or ('помощь' in user_proposition and 'зал' not in user_proposition):
+        what_i_can_do(res, req, user_id)
         return
-
 
     if req['session']['new']:
-        res['response']['card'] = {}
-        res['response']['card']['type'] = 'BigImage'
-        res['response']['card']['description'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и к ним даю четыре возможных варианта ответа. Перед началом игры представьтесь, пожалуйста.'
-        res['response']['card']['image_id'] = image_id
-        res['response']['text'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и даю 4 варианта ответа к ним. За каждый верный ответ вы получаете определённое количество очков. Ответив неверно, ваши очки сгорают. Чтобы сохранить свой результат скажите "Стоп" в любой момент времени. Перед началом игры представьтесь, пожалуйста.'
-
-        USERS[user_id] = dict()
-        USERS[user_id]['name'] = None
-        return
-        res['response']['text'] = random.choice(Entries)
-
+        give_info_new_user(res, user_id)
         return
 
+    if user_id not in USERS:
+        give_info_new_user(res, user_id)
+        return
+
+    if USERS[user_id]['name'] is None:
+        user_give_her_name(user_id, res, req)
+        return
+
+    if USERS[user_id]['game_status'] == 1:
+        user_choose_category(res, req, user_id)
+        return
+
+    if USERS[user_id]['game_status'] == 2:
+        check_user_answer(res, req, user_id)
+        return
+
+    if USERS[user_id]['game_status'] == 3:
+        add_new_top_player(res, req, user_id)
+        return
+
+    if USERS[user_id]['game_status'] == 4:
+        if 'что дальше' not in  user_proposition:
+            res['response']['text'] = 'Простите, но я вас не поняла!\n'
+            res['response']['buttons'] = []
+            res['response']['buttons'].append({
+                'title': 'Что дальше?',
+                'hide': True
+            })
+            return
+        what_the_next(res, req, user_id)
+        return
+
+    if USERS[user_id]['game_status'] == 5:
+        change_category_or_toplist(res, req, user_id)
+        return
+
+    if  USERS[user_id]['game_status'] == 6:
+        check_for_user_give_tip(res, req, user_id)
+        return
+
+
+
+
+
+
+def user_give_her_name(user_id, res, req):
+    name = get_name(req)
+    if name is None:
+        res['response']['text'] = random.choice(WRONG_NAME)
+        return
+
+    name = name[0].upper() + name[1:].lower()
+    USERS[user_id]['name'] = name
+
+    for id_category in categories:
+        if id_category in USERS[user_id]:
+            continue
+        else:
+            USERS[user_id][id_category] = get_list_question(id_category)
+
+    give_categories(res, user_id)
+    res['response']['text'] = random.choice(CHOOSE_CATEGORY).format(USERS[user_id]['name']) + '\n' + res['response']['text']
+    USERS[user_id]['game_status'] = 1
+    return
+
+
+
+def what_i_can_do(res, req, user_id):
+    text_ = FULL_HELP_INFO
 
 
     if USERS[user_id]['name'] is None:
-        name = get_name(req)
-        if name is None:
-            res['response']['text'] = random.choice(WRONG_NAME)
-            return
-
-        name = name[0].upper() + name[1:].lower()
-        USERS[user_id]['name'] = name
-        res['response']['text'] = \
-            random.choice(START_GAME).format(name)
-
+        text_ += "Представьтесь, пожалуйста!"
         res['response']['buttons'] = []
 
         res['response']['buttons'].append(
             {
-                'title': 'Да',
+                'title': 'Аноним',
                 'hide': True
-            }
-        )
-        USERS[user_id]['game_status'] = 0
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Узнать правила',
-                'hide': True
-            }
-        )
-
-        arr = []
-        for i in QUESTIONS:
-            arr.append(i)
-
-        random.shuffle(arr)
-        USERS[user_id]['list_of_questions'] = arr
-        save_users()
-        return
-
-
-
-
-
-
-
-    if 'правила' in user_proposition or 'узнать правила' in user_proposition:
-        tt = 'Правила очень простые! За каждый верный ваш ответ вам начисляются очки! ' \
-        'После неправильного ответа на вопрос все накопленные вами очки сгорают. ' \
-        'В любой момент игры вы можете сказать "Стоп" и мы сохраним ваш результат. ' \
-        'Ну что же, начнём?'
-        res['response']['text'] = tt
-        res['response']['buttons'] = []
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Да',
-                'hide': True
-            }
-        )
-        return
-
-
-
-    if USERS[user_id]['game_status'] == 0:
-        flag = False
-        for word in OK_WORDS:
-            if word in user_words:
-                flag = True
-                break
-
-        if not flag:
-            res['response']['text'] = \
-                random.choice(UNDERSTAND_START_GAME).format(USERS[user_id]['name'])
-            return
-
-        USERS[user_id]['question_number'] = 1
-        QUEST = get_question(1, user_id)
-        USERS[user_id]['count_correct_answers'] = 0
-        USERS[user_id]['question_status'] = 1
-        USERS[user_id]['question_data'] = QUEST
-        USERS[user_id]['points'] = 0
-        USERS[user_id]['game_status'] = 1
-        USERS[user_id]['tips'] = {
-        '50 на 50': 'Остаётся два варианта ответа, один из который правильный',
-        'Доп. жизнь': 'В текущем вопросе вам даётся право на ошибку',
-        'Звонок другу': 'Помощь друга',
-        'Помощь зала': 'Зрители голосуют за понравившиеся им варианты ответов'
-    }
-        give_question(res, user_id)
-        save_users()
-        return
-
-
-    if USERS[user_id]['game_status'] == 3:
-        flag = False
-        for w in BAD_WORDS:
-            if w in user_proposition:
-               flag = True
-               break
-
-        if flag:
-            USERS[user_id]['game_status'] = 1
-            give_question(res, user_id)
-            res['response']['text'] = random.choice(WITHOUT_PROMPT)
-            save_users()
-            return
-
-        if 'доп. жизнь' in user_proposition or 'дополнительная жизнь' in user_proposition or 'доп.жизнь' in user_proposition:
-            USERS[user_id]['game_status'] = 1
-
-            if 'Доп. жизнь' not in USERS[user_id]['tips']:
-                give_question(res, user_id)
-
-                res['response']['text'] = 'Увы, но вы уже использовали этот бонус! Выберите ответ.'
-
-                return
-            USERS[user_id]['question_status'] = 2
-            USERS[user_id]['tips'].pop('Доп. жизнь')
-            give_question(res, user_id)
-            res['response']['text'] = 'Бонус активирован! У вас есть право ошибиться на текущем вопросе!'
-            save_users()
-            return
-
-        if '50 на 50' in user_proposition:
-            USERS[user_id]['game_status'] = 1
-            if '50 на 50' not in USERS[user_id]['tips']:
-                give_question(res, user_id)
-                res['response']['text'] = 'Увы, но вы уже использовали этот бонус! Выберите ответ.'
-                return
-
-            arr = []
-            for maybe in USERS[user_id]['question_data']['possible_answers']:
-                if maybe.upper() != USERS[user_id]['question_data']['correct_answer'].upper():
-                    arr.append(maybe)
-
-            random.shuffle(arr)
-            while len(arr) > 1:
-                USERS[user_id]['question_data']['possible_answers'].pop(arr[0])
-                del arr[0]
-
-            USERS[user_id]['tips'].pop('50 на 50')
-            give_question(res, user_id)
-            res['response']['text'] = 'Мы убрали лишние ответы! Делайте выбор!'
-            save_users()
-            return
-
-
-
-        if 'звонок дру' in user_proposition or 'другу звон' in user_proposition or 'позвоню дру' in user_proposition:
-            USERS[user_id]['game_status'] = 1
-            if 'Звонок другу' not in USERS[user_id]['tips']:
-                give_question(res, user_id)
-                res['response']['text'] = 'Вы уже использовали этот бонус! Выберите ответ.'
-                save_users()
-                return
-
-            USERS[user_id]['tips'].pop('Звонок другу')
-            arr = []
-            for g in USERS[user_id]['question_data']['possible_answers']:
-                arr.append(g)
-
-            give_question(res, user_id)
-            res['response']['text'] = USERS[user_id]['question_data']['call_friend'].format(random.choice(arr))
-            res['response']['text'] += random.choice(TIME_ENDED)
-            save_users()
-            return
-
-
-        if 'помощь зала' in user_proposition or 'зал помоги' in user_proposition:
-            USERS[user_id]['game_status'] = 1
-            if 'Помощь зала' not in USERS[user_id]['tips']:
-                give_question(res, user_id)
-                res['response']['text'] = 'Вы уже использовали эту подсказку! Пора выбрать ответ.'
-                save_users()
-                return
-
-            USERS[user_id]['tips'].pop('Помощь зала')
-            text = 'Зрители берут в руки пульты и голосую!..\n Голосование закончилось!\n Результаты следующие:\n'
-            cnt = 0
-            for w in USERS[user_id]['question_data']['possible_answers']:
-                cnt += get_statistics(USERS[user_id]['question_data']['id'])[w]
-
-            for w in USERS[user_id]['question_data']['possible_answers']:
-                text += w + ' - ' + str(int(100 * get_statistics(USERS[user_id]['question_data']['id'])[w] / cnt)) + '%\n'
-
-            give_question(res, user_id)
-            res['response']['text'] = text + '\nАнализируйте и делайте ваш выбор!'
-            save_users()
-            return
-
+            })
     elif USERS[user_id]['game_status'] == 1:
-        flag2 = False
-        for stop in STOP_WORDS:
-            if stop in user_proposition:
-                flag2 = True
-                break
-
-        if flag2:
-            USERS[user_id]['game_status'] = 4
-            res['response']['text'] = '{}, вы набрали {} очков! Под каким именем вас записать в топ-лист?'.format(USERS[user_id]['name'], USERS[user_id]['points'])
-            save_users()
-            save_users()
-            return
-
-        for w in user_words:
-            if len(w) == 1 and w.lower() in string_variant.lower():
-                if w.lower() in USERS[user_id]['question_data']['correct_answer'].lower():
-                    player_give_correct_answer(res, user_id)
-                    return
-                else:
-                    give_wrong_answer(res, user_id, w.upper())
-                    return
-
-
-        if 'подсказка' in user_proposition:
-            if len(USERS[user_id]['tips']) == 0:
-                give_question(res, user_id)
-                res['response']['text'] = 'Увы, но у вас кончились подсказки.'
-                save_users()
-                return
-
-            res['response']['text'] = 'Вам доступны следующие подсказки:\n'
-            res['response']['buttons'] = []
-
-            for t in USERS[user_id]['tips']:
-                res['response']['text'] += t + ' - ' +  USERS[user_id]['tips'][t] + '\n'
-                res['response']['buttons'].append(
-                    {
-                        'title': t,
-                        'hide': True
-                    }
-                )
-
-            res['response']['buttons'].append(
-                {
-                    'title': 'Не нужна',
-                    'hide': True
-                }
-            )
-            USERS[user_id]['game_status'] = 3
-            save_users()
-            return
-
-        else: # Ответ от игрока не получен
-            give_question(res, user_id)
-            res['response']['text'] = 'Я не поняла ваш ответ, для используйте только буквы:\n А, Б, В или Г.'
-            return
-
+        text_ += "Пора выбрать категорию!"
+        give_categories(res, user_id)
+    elif USERS[user_id]['game_status'] == 2:
+        text_ += "Пора выбирать правильный ответ!"
+        give_question_buttons(res, user_id)
     elif USERS[user_id]['game_status'] == 4:
-        USERS[user_id]['game_status'] = 6
-        nickname = req['request']['original_utterance'].strip().replace('  ', ' ')[:20]
-        points = USERS[user_id]['points']
-        myind = 1
-        flag_now = False
-        for i in range(len(TOPLIST)):
-            if TOPLIST[i][0] < points:
-                TOPLIST.insert(i, [points, nickname])
-                myind = i + 1
-                flag_now = True
-                break
-
-
-        if not flag_now:
-            TOPLIST.insert(len(TOPLIST), [points, nickname])
-            myind = len(TOPLIST)
-
-        res['response']['text'] = 'Вы занимаете {} место! Я записала вас под никнэймом - {}!\n' \
-                                  'Вы хотите начать игру сначала? Или может быть посмотреть топ игроков?' \
-                                  ''.format(myind, nickname)
+        text_ += "Что вы хотите делать дальше?"
         res['response']['buttons'] = []
 
-        USERS[user_id]['game_status'] = 6
+        res['response']['buttons'].append({
+            'title': 'Остаться в текущей категории',
+            'hide': True
+        })
 
-        res['response']['buttons'].append(
-            {
-                'title': 'Посмотреть топ-лист',
-                'hide': True
-            }
-        )
+        res['response']['buttons'].append({
+            'title': 'Сменить категорию',
+            'hide': True
+        })
 
-        res['response']['buttons'].append(
-            {
-                'title': 'Начать игру сначала',
-                'hide': True
-            }
-        )
-
-        save_users()
-        save_STATISTICS_QUESTIONS()
-        save_toplist()
-        return
-
-    elif USERS[user_id]['game_status'] == 5:
-        USERS[user_id]['game_status'] = 6
-        res['response']['text'] = 'Вы хотите начать игру сначала? Или может быть посмотреть топ игроков?'
-        res['response']['buttons'] = []
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Посмотреть топ-лист',
-                'hide': True
-            }
-        )
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Начать игру сначала',
-                'hide': True
-            }
-        )
-        return
+        res['response']['buttons'].append({
+            'title': 'Посмотреть топ-лист',
+            'hide': True
+        })
+        USERS[user_id]['game_status'] = 5
 
     elif USERS[user_id]['game_status'] == 6:
-        top_flag = False
-        for w in TOP_LIST_WORDS:
-            if w in user_proposition:
-                top_flag = True
-                break
+        text_ += "Пора выбрать подсказку, которую вы хотите использовать!"
+        give_hint(res, req, user_id)
 
-        res['response']['buttons'] = []
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Посмотреть топ-лист',
-                'hide': True
-            }
-        )
-
-        res['response']['buttons'].append(
-            {
-                'title': 'Начать игру сначала',
-                'hide': True
-            }
-        )
-
-
-        top = ''
-        if top_flag:
-            for i in range(min(len(TOPLIST), 10)):
-                top += str(i + 1) + ') ' + TOPLIST[i][1] + ' - ' + str(TOPLIST[i][0]) + '\n'
-
-            res['response']['text'] = 'Топ игроков игры "Интеллектуальный Олимп"\n' + top
-            return
-
-        flag_restart = False
-        for w in RESTART_WORDS:
-            if w in user_proposition:
-                flag_restart = True
-                break
-
-
-        if flag_restart:
-            if(len(USERS[user_id]['list_of_questions']) == 0):
-                res['response']['text'] = \
-                    '{}, у нас кончились вопросы для вас! Ждём вас в следующий раз, когда у нас пополнятся вопросы!'.format(USERS[user_id]['name'])
-                USERS[user_id]['game_status'] = 6
-                res['response']['buttons'] = []
-                res['response']['buttons'].append(
-                    {
-                        'title': 'Посмотреть топ-лист',
-                        'hide': True
-                    }
-                )
-                return
-
-            res['response']['text'] = \
-                'Итак, {}, вы готовы начать игру?'.format(USERS[user_id]['name'])
-
-            USERS[user_id]['game_status'] = 0
-
-            res['response']['buttons'] = []
-            res['response']['buttons'].append(
-                {
-                    'title': 'Да',
-                    'hide': True
-                }
-            )
-
-
-            return
-
-        res['response']['text'] = \
-            '{}, я не совсем поняла вас.'.format(USERS[user_id]['name'])
-        save_users()
-        return
+    res['response']['text'] = text_
+    return
 
 
 
-def get_name(req):
-    for entity in req['request']['nlu']['entities']:
-        if entity['type'] == 'YANDEX.FIO':
-            if ('first_name' in entity['value']):
-                return entity['value']['first_name']
-            return None
 
-
-
-def get_question(level, user_id):
-    if(len(USERS[user_id]['list_of_questions']) == 0):
-        return None
-    need_id = USERS[user_id]['list_of_questions'][0]
-    h = QUESTIONS[need_id].copy()
-    return h
-
-
-
-def give_question(res, user_id):
-    if(len(USERS[user_id]['list_of_questions']) == 0):
-        res['response']['text'] = 'У нас кончились вопросы для вас! Ждём вас в следующий раз, когда у нас пополнятся вопросы!'
-        USERS[user_id]['game_status'] = 5
-        return
-
-
-
-    res['response']['text'] = 'Вопрос №{}'.format( USERS[user_id]['question_number'] ) + ', стоимость вопроса: {} очков!\n'.format(USERS[user_id]['question_data']['cost']) \
-                              + USERS[user_id]['question_data']['text'] + ' \n'
-
+def give_info_new_user(res, user_id):
+    res['response']['card'] = {}
+    res['response']['card']['type'] = 'BigImage'
+    res['response']['card'][
+        'description'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и к ним даю четыре возможных варианта ответа. Перед началом игры представьтесь, пожалуйста.'
+    res['response']['card']['image_id'] = image_id
+    res['response'][
+        'text'] = 'Добро пожаловать в игру "Интеллектуальный Олимп"! Здесь я задаю вам вопросы и даю 4 варианта ответа к ним. За каждый верный ответ вы получаете определённое количество очков. Ответив неверно, ваши очки сгорают. Чтобы сохранить свой результат скажите "Стоп" в любой момент времени. Перед началом игры представьтесь, пожалуйста.'
     res['response']['buttons'] = []
-
-    for w in string_variant.upper():
-        if w not in USERS[user_id]['question_data']['possible_answers']:
-            continue
-
-        res['response']['buttons'].append(
-            {
-            'title': w,
-            'hide': True
-        }
-        )
-
-        res['response']['text'] += w.upper() + ') ' + USERS[user_id]['question_data']['possible_answers'][w] + '\n'
-
-    res['response']['buttons'].append({
-        'title': 'Подсказка',
-        'hide': True
-    })
-
-    res['response']['buttons'].append({
-        'title': 'Стоп',
-        'hide': True
-    })
 
     res['response']['buttons'].append(
         {
-            'title': 'Правила',
+        'title': 'Аноним',
+        'hide': True
+        })
+
+
+    USERS[user_id] = dict()
+    USERS[user_id]['name'] = None
+    return
+
+
+def user_choose_category(res, req, user_id):
+    user_words = req['request']['nlu']['tokens']
+    USER_CATEGORY = None
+    for id_category in categories:
+        if categories[id_category].lower() in user_words:
+            USER_CATEGORY = id_category
+            break
+
+    if USER_CATEGORY is None:
+        give_categories(res, user_id)
+        res['response']['text'] = BAD_CHANGE_CATEGORY + res['response']['text']
+        return
+
+
+    USERS[user_id]['category'] = USER_CATEGORY
+    USERS[user_id]['points'] = 0
+    QUEST = get_question(res, user_id)
+
+    if QUEST is None:
+        give_categories(res, user_id)
+        res['response']['text'] = 'Увы, но у нас для вас нет вопросов из данной категории, выберите другую категорию.'
+        return
+
+    USERS[user_id]['question'] = QUEST
+    USERS[user_id]['round'] = 1
+    USERS[user_id]['count_wrong'] = 0
+    give_question(res, user_id)
+
+    res['response']['text'] = 'Итак, вы выбрали категорию "{}"!\n'.format(categories[USER_CATEGORY]) +  get_text_question(user_id)
+    give_question_buttons(res, user_id)
+    USERS[user_id]['game_status'] = 2
+
+    USERS[user_id]['tips'] = {
+                                'Доп. жизнь': 'В текущем вопросе вам даётся право на ошибку',
+                                '50 на 50': 'Остаётся два варианта ответа, один из который правильный',
+                                'Звонок другу': 'Помощь друга',
+                                'Помощь зала': 'Зрители голосуют за понравившиеся им варианты ответов'
+                            }
+    return
+
+
+def get_question(res, user_id):
+    my_category = USERS[user_id]['category']
+    if len(USERS[user_id][my_category]) == 0:
+        return None
+
+    USERS[user_id]['question'] = get_data_question(my_category, USERS[user_id][my_category][0])
+    del USERS[user_id][my_category][0]
+    return USERS[user_id]['question']
+
+
+def get_data_question(category, id_question):
+    QUEST = QUESTIONS.get(category, id_question)
+    question_dict = dict()
+    question_dict['id'] = id_question
+    question_dict['category'] = category
+    question_dict['text_question'] = QUEST[1]
+
+    question_dict['possible'] = dict()
+    question_dict['possible']['А'] = QUEST[2]
+    question_dict['possible']['Б'] = QUEST[3]
+    question_dict['possible']['В'] = QUEST[4]
+    question_dict['possible']['Г'] = QUEST[5]
+
+    question_dict['statistics'] = dict()
+    question_dict['statistics']['А'] = QUEST[6]
+    question_dict['statistics']['Б'] = QUEST[7]
+    question_dict['statistics']['В'] = QUEST[8]
+    question_dict['statistics']['Г'] = QUEST[9]
+
+    question_dict['call_friend'] = QUEST[10]
+    question_dict['correct_answer'] = QUEST[11]
+    question_dict['level'] = QUEST[12]
+    question_dict['points'] =  QUEST[13]
+    return question_dict
+
+
+
+def give_categories(res, user_id):
+    res['response']['buttons'] = []
+    res['response']['text'] = ''
+
+    for id in categories:
+        res['response']['buttons'].append({
+            'title': categories[id],
+            'hide': True
+        })
+        res['response']['text'] += categories[id] + '\n'
+    return
+
+
+def give_question(res, user_id):
+    var = 'АБВГ'
+    give_question_buttons(res, user_id)
+    res['response']['text'] = get_text_question(user_id)
+
+    return
+
+
+def check_user_have_question_in_category(user_id, category):
+    return len(USERS[user_id][category]) != 0
+
+def get_list_question(id_category):
+    arr = []
+    for i in QUESTIONS.get_all_by_category(id_category):
+        arr.append(i[0])
+    return arr
+
+
+
+
+string_variant = 'АБВГ'
+
+def check_user_answer(res, req, user_id):
+    user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+    flag = False
+
+    for w in STOP_WORDS:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        give_result_and_ask_nickname(res, user_id)
+        return
+
+
+
+
+    if 'подсказк' in user_proposition or 'подскаж' in user_proposition:
+        give_hint(res, req, user_id)
+        return
+
+    for w in user_words:
+        if len(w) == 1 and w.lower() in string_variant.lower():
+            if w.lower() in USERS[user_id]['question']['correct_answer'].lower():
+                player_give_correct_answer(res, user_id, w.lower())
+                return
+            else:
+                player_give_wrong_answer(res, user_id, w.upper())
+                return
+
+    res['response']['text'] = 'Простите, я не поняла ваш ответ, для ответа используйте буквы: А, Б, В или Г.'
+    give_question_buttons(res, user_id)
+    return
+
+
+def player_give_correct_answer(res, user_id, w):
+    update_statistics(USERS[user_id]['question']['category'], USERS[user_id]['question']['id'], w, 1)
+    USERS[user_id]['points'] += USERS[user_id]['question']['points']
+
+    NEW_QUEST = get_question(res, user_id)
+    USERS[user_id]['count_wrong'] = 0
+
+    if NEW_QUEST is None: # Кончились вопросы
+        res['response']['text'] \
+            = 'И это правильный ответ! Теперь у вас {} очков!\n К сожалению, у нас кончились для вас вопросы. ' \
+                          ''.format(USERS[user_id]['points']) + '\n Под каким именем вас записать в топ-лист?'
+        USERS[user_id]['game_status'] = 3
+        return
+
+    USERS[user_id]['round'] += 1
+    res['response']['text'] = random.choice(GOOD_ANSWER) + ' Теперь у вас {} очков!\n'.format(
+        USERS[user_id]['points']) + get_text_question(user_id)
+
+    USERS[user_id]['game_status'] = 2
+
+    USERS[user_id]['question'] = NEW_QUEST
+    give_question_buttons(res, user_id)
+
+
+def player_give_wrong_answer(res, user_id, w):
+    update_statistics(USERS[user_id]['question']['category'], USERS[user_id]['question']['id'], w, 1)
+    if USERS[user_id]['count_wrong']:
+        if w in USERS[user_id]['question']['possible']:
+            USERS[user_id]['question']['possible'].pop(w.upper())
+        USERS[user_id]['count_wrong'] = 0
+        res['response']['text'] = WE_HAVENT_QUESTION_IN_THIS_CATEGORY
+        give_question_buttons(res, user_id)
+        return
+
+    res['response']['text'] = random.choice(GAME_OVER)
+    res['response']['buttons'] = []
+    res['response']['buttons'].append({
+        'title': 'Что дальше?',
+        'hide': True
+    })
+    USERS[user_id]['game_status'] = 4
+    return
+
+
+
+def get_text_question(user_id):
+    text_ = 'Вопрос №{}'.format(
+        USERS[user_id]['round']) + ', стоимость вопроса: {} очков!'.format(
+        USERS[user_id]['question']['points']) + '\n' + str(USERS[user_id]['question']['text_question']) + '\n'
+    for w in string_variant:
+        if w in USERS[user_id]['question']['possible']:
+            text_ += str(w) + ') ' + str(USERS[user_id]['question']['possible'][w]) + '\n'
+
+    return text_
+
+def give_question_buttons(res, user_id):
+    res['response']['buttons'] = []
+    for w in string_variant.upper():
+        if w in USERS[user_id]['question']['possible']:
+            res['response']['buttons'].append(
+                {
+                    'title': w,
+                    'hide': True
+                }
+            )
+
+    res['response']['buttons'].append(
+        {
+            'title': 'Стоп',
+            'hide': True
+        }
+    )
+
+    res['response']['buttons'].append(
+        {
+            'title': 'Подсказка',
+            'hide': True
+        }
+    )
+    res['response']['buttons'].append(
+        {
+            'title': 'Помощь',
             'hide': True
         }
     )
 
 
-    save_users()
-    return
-
-def player_give_correct_answer(res, user_id):
-    del USERS[user_id]['list_of_questions'][0]
-    STATISTICS_QUESTIONS[str(USERS[user_id]['question_data']['id'])][USERS[user_id]['question_data']['correct_answer']] += 1
-    USERS[user_id]['points'] += USERS[user_id]['question_data']['cost']
-    USERS[user_id]['question_number'] += 1
-    USERS[user_id]['count_correct_answers'] += 1
-    USERS[user_id]['question_status'] = 1
-    save_STATISTICS_QUESTIONS()
-
-    NEW_QUEST = get_question(USERS[user_id]['question_number'], user_id)
-    if(NEW_QUEST is None):
-        res['response']['text'] = 'И это правильный ответ! Теперь у вас {} очков!\n К сожалению, у нас кончились для вас вопросы. ' \
-                                  ''.format(USERS[user_id]['points']) + '\n Под каким именем вас записать в топ-лист?'
-        USERS[user_id]['game_status'] = 4
-        save_users()
-        return
-
-    USERS[user_id]['question_data'] = NEW_QUEST
-    give_question(res, user_id)
-    res['response']['text'] = random.choice(GOOD_ANSWER) + ' Теперь у вас {} очков!\n'.format(USERS[user_id]['points']) + res['response']['text']
-    save_users()
-    return
-
-
-
-
-def give_wrong_answer(res, user_id, myans):
-    STATISTICS_QUESTIONS[str(USERS[user_id]['question_data']['id'])][myans] += 1
-
-    if USERS[user_id]['question_status'] == 2:
-        if myans in USERS[user_id]['question_data']['possible_answers']:
-            USERS[user_id]['question_data']['possible_answers'].pop(myans.upper())
-
-        give_question(res, user_id)
-        USERS[user_id]['question_status'] = 1
-        save_STATISTICS_QUESTIONS()
-        res['response']['text'] = 'Увы, но это неверный ответ, но у вас есть ещё одна попытка!'
-        return
+def add_new_top_player(res, req, user_id):
+    global TOPLIST
+    nickname = req['request']['original_utterance'].strip().replace('  ', ' ')[:20]
+    points = USERS[user_id]['points']
+    myind = 1
+    flag_now = False
+    for i in range(len(TOPLIST)):
+        if TOPLIST[i][0] < points:
+            TOPLIST.insert(i, [points, nickname])
+            myind = i + 1
+            flag_now = True
+            break
 
     res['response']['buttons'] = []
-    res['response']['text'] = random.choice(GAME_OVER)
-    del USERS[user_id]['list_of_questions'][0]
     res['response']['buttons'].append({
         'title': 'Что дальше?',
         'hide': True
     })
-    save_users()
-    save_STATISTICS_QUESTIONS()
-    USERS[user_id]['game_status'] = 5
+
+    if not flag_now:
+        TOPLIST.insert(len(TOPLIST), [points, nickname])
+        myind = len(TOPLIST)
+
+    save_toplist()
+
+    res['response']['text'] = 'Вы занимаете {} место! Я записала вас под никнэймом - {}!'.format(myind, nickname)
+    USERS[user_id]['game_status'] = 4
     return
 
 
-def get_statistics(id_quest):
-    return STATISTICS_QUESTIONS[str(id_quest)]
+
+def what_the_next(res, req, user_id):
+    text_ = 'Вы хотите начать новую игру в новой категории, остаться в текущей, или может быть посмотреть топ-лист?'
+    USERS[user_id]['game_status'] = 5
+    res['response']['text'] = text_
+    res['response']['buttons'] = []
+
+    res['response']['buttons'].append({
+        'title': 'Остаться в текущей категории',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Сменить категорию',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Посмотреть топ-лист',
+        'hide': True
+    })
+    return
+
+def change_category_or_toplist(res, req, user_id):
+    user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+
+    flag = False
+    for w in CHANGE_CATEGORY_WORDS:
+        if w in user_proposition:
+            flag = True
+            break
+
+
+    if flag:
+        give_categories(res, user_id)
+        res['response']['text'] = random.choice(CHOOSE_CATEGORY).format(USERS[user_id]['name']) + '\n' + \
+                                  res['response']['text']
+        USERS[user_id]['game_status'] = 1
+        return
+
+
+
+
+    flag = False
+    for w in STAY_AT_THIS_CATEGORY:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        now_category = USERS[user_id]['category']
+        if len(USERS[user_id][now_category]) == 0:
+            text_ = 'Увы, но в текущей категории кончились вопросы для вас.'
+            res['response']['text'] = text_
+            res['response']['buttons'] = []
+
+            res['response']['buttons'].append({
+                'title': 'Остаться в текущей категории',
+                'hide': True
+            })
+
+            res['response']['buttons'].append({
+                'title': 'Сменить категорию',
+                'hide': True
+            })
+
+            res['response']['buttons'].append({
+                'title': 'Посмотреть топ-лист',
+                'hide': True
+            })
+            return
+
+
+
+        USERS[user_id]['game_status'] = 2
+        USERS[user_id]['round'] = 1
+        USERS[user_id]['points'] = 0
+        USERS[user_id]['count_wrong'] = 0
+
+        USERS[user_id]['question'] = get_question(res, user_id)
+
+        res['response']['text'] = get_text_question(user_id)
+        give_question_buttons(res, user_id)
+
+        USERS[user_id]['tips'] = {
+            'Доп. жизнь': 'В текущем вопросе вам даётся право на ошибку',
+            '50 на 50': 'Остаётся два варианта ответа, один из который правильный',
+            'Звонок другу': 'Помощь друга',
+            'Помощь зала': 'Зрители голосуют за понравившиеся им варианты ответов'
+        }
+        return
+
+
+
+
+
+
+
+    flag = False
+    for w in TOP_WORDS:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        text_= ''
+        for i in range(min(len(TOPLIST), 10)):
+            text_ += str(i + 1) + ') ' + TOPLIST[i][1] + ' - ' + str(TOPLIST[i][0]) + '\n'
+        res['response']['text'] = 'Топ игроков игры "Интеллектуальный Олимп"\n\n' + text_
+
+        res['response']['buttons'] = []
+        res['response']['buttons'].append({
+            'title': 'Остаться в текущей категории',
+            'hide': True
+        })
+
+        res['response']['buttons'].append({
+            'title': 'Сменить категорию',
+            'hide': True
+        })
+
+        res['response']['buttons'].append({
+            'title': 'Посмотреть топ-лист',
+            'hide': True
+        })
+
+        return
+
+
+    text_ = 'Простите, но я не совсем поняла вас, повторите ещё раз.'
+    res['response']['text'] = text_
+
+    res['response']['buttons'] = []
+    res['response']['buttons'].append({
+        'title': 'Остаться в категории',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Сменить категорию',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Посмотреть топ-лист',
+        'hide': True
+    })
+    return
+
+def give_hint(res, req, user_id):
+    user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+    if len(USERS[user_id]['tips']) == 0:
+        res['response']['text'] = 'Увы, но у вас кончились подсказки.'
+        give_question_buttons(res, user_id)
+        return
+
+    res['response']['text'] = 'Вам доступны следующие подсказки:\n'
+    res['response']['buttons'] = []
+
+    for t in USERS[user_id]['tips']:
+        res['response']['text'] += t + ' - ' + USERS[user_id]['tips'][t] + '\n'
+        res['response']['buttons'].append(
+            {
+                'title': t,
+                'hide': True
+            }
+        )
+
+    res['response']['buttons'].append(
+        {
+            'title': 'Не нужна',
+            'hide': True
+        }
+    )
+    USERS[user_id]['game_status'] = 6
+    return
+
+
+def check_for_user_give_tip(res, req, user_id):
+    user_words = req['request']['nlu']['tokens']
+    user_proposition = req['request']['original_utterance'].lower().replace('  ', ' ')
+
+    # Без подсказок
+    flag = False
+    for w in REFUSAL_TIP:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        USERS[user_id]['game_status'] = 2
+        res['response']['text'] = random.choice(WITHOUT_PROMPT)
+        give_question_buttons(res, user_id)
+        return
+
+
+    flag = False
+    for w in EXTRA_LIFE:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        if 'Доп. жизнь' not in USERS[user_id]['tips']:
+            give_question_buttons(res, user_id)
+            res['response']['text'] = 'Увы, но вы уже использовали этот бонус! Выберите ответ.'
+            return
+
+        USERS[user_id]['count_wrong'] = 1
+        USERS[user_id]['game_status'] = 2
+        USERS[user_id]['tips'].pop('Доп. жизнь')
+        give_question_buttons(res, user_id)
+        res['response']['text'] = 'Бонус активирован! У вас есть право ошибиться на текущем вопросе!'
+        return
+
+
+    flag = False
+    for w in FIFTY_FIFTY:
+        if w in user_proposition:
+            flag = True
+            break
+
+    if flag:
+        if '50 на 50' not in USERS[user_id]['tips']:
+            res['response']['text'] = 'Увы, но вы уже использовали этот бонус! Выберите ответ.'
+            give_question_buttons(res, user_id)
+            USERS[user_id]['game_status'] = 2
+            return
+
+        arr = []
+        for maybe in USERS[user_id]['question']['possible']:
+            if maybe.upper() != USERS[user_id]['question']['correct_answer'].upper():
+                arr.append(maybe)
+
+        random.shuffle(arr)
+        while len(arr) > 1:
+            USERS[user_id]['question']['possible'].pop(arr[0])
+            del arr[0]
+
+        USERS[user_id]['tips'].pop('50 на 50')
+        give_question_buttons(res, user_id)
+        USERS[user_id]['game_status'] = 2
+        res['response']['text'] = 'Мы убрали лишние ответы! Делайте выбор!'
+        return
+
+
+    flag = False
+    for w in CALL_TO_FRIEND:
+        if w in user_proposition:
+            flag = True
+            break
+
+
+    if flag:
+        if 'Звонок другу' not in USERS[user_id]['tips']:
+            res['response']['text'] = 'Вы уже использовали этот бонус! Выберите ответ.'
+            USERS[user_id]['game_status'] = 2
+            give_question_buttons(res, user_id)
+            return
+
+        USERS[user_id]['tips'].pop('Звонок другу')
+        arr = []
+        for g in USERS[user_id]['question']['possible']:
+            arr.append(g)
+
+        USERS[user_id]['game_status'] = 2
+        give_question_buttons(res, user_id)
+        res['response']['text'] = USERS[user_id]['question']['call_friend'].format(random.choice(arr))
+        res['response']['text'] += '\n' + random.choice(TIME_ENDED)
+        return
+
+
+    flag = False
+    for w in HELP_HALL:
+        if w in user_proposition:
+            flag = True
+            break
+
+
+    if flag:
+        if 'Помощь зала' not in USERS[user_id]['tips']:
+            res['response']['text'] = 'Вы уже использовали эту подсказку! Пора выбрать ответ.'
+            USERS[user_id]['game_status'] = 2
+            give_question_buttons(res, user_id)
+            return
+
+        USERS[user_id]['tips'].pop('Помощь зала')
+        text_ = 'Зрители берут в руки пульты и голосую!..\n Голосование закончилось!\n Результаты следующие:\n'
+        cnt = 0
+        for w in USERS[user_id]['question']['possible']:
+            cnt += USERS[user_id]['question']['statistics'][w]
+
+        STAT = ''
+        for w in string_variant.upper():
+            if w in USERS[user_id]['question']['possible']:
+                STAT += w + ' - ' + str(int(100 * USERS[user_id]['question']['statistics'][w] / cnt)) + '%\n'
+
+        text_ += STAT
+
+        res['response']['text'] = text_ + '\nАнализируйте и делайте ваш выбор!'
+        give_question_buttons(res, user_id)
+        USERS[user_id]['game_status'] = 2
+        return
+
+    text_ = 'Я не совсем поняла какую подсказку вы выбрали, повторите ещё раз!'
+    res['response']['text'] = text_
+    res['response']['buttons'] = []
+    for t in USERS[user_id]['tips']:
+        res['response']['buttons'].append(
+            {
+                'title': t,
+                'hide': True
+            }
+        )
+    res['response']['buttons'].append(
+        {
+            'title': 'Не нужна',
+            'hide': True
+        }
+    )
+    USERS[user_id]['game_status'] = 6
+    return
+
+
+def update_statistics(category, question_id, symbol, delta):
+    QUESTIONS.update_question_statistics(category, question_id, symbol, delta)
+
+
+def give_result_and_ask_nickname(res, user_id):
+    res['response']['text'] = '{}, вы набрали {} очков! Под каким именем вас записать в топ-лист?'.format(
+        USERS[user_id]['name'], USERS[user_id]['points'])
+    USERS[user_id]['game_status'] = 3
+    return
 
 
 
@@ -647,6 +824,7 @@ def index():
 
     return render_template('delete_top.html', TOP_USERS = NEW_ARR)
 
+
 @app.route('/delete_top/<id>', methods=['GET'])
 def delete_top(id):
     del TOPLIST[int(id)]
@@ -654,6 +832,172 @@ def delete_top(id):
     return redirect('/admin_page')
 
 
+@app.route('/delete_some_questions', methods=['GET'])
+def delete_some_questions():
+    DATA = []
+    for i in categories:
+        ALL = QUESTIONS.get_all_by_category(i)
+        DATA.append((categories[i], i, ALL))
+
+    return render_template('delete_some_questions.html', questions_ = DATA)
+
+@app.route('/delete_question/<ind>/<id>', methods=['GET'])
+def del_quest(ind, id):
+    try:
+        category_del = int(ind)
+        id_del = int(id)
+        QUESTIONS.delete_question_by_category_and_id(category_del, id)
+    except:
+        return redirect('/delete_some_questions')
+
+    return redirect('/delete_some_questions')
+
+
+
+from flask_wtf import FlaskForm
+class ADD_NEW_QUESTION(FlaskForm):
+
+    cat = []
+    for i in categories:
+        cat.append((str(i), categories[i]))
+
+    category = SelectField('Category:', choices = cat)
+
+    text = StringField('Text:', validators=[])
+    tip = StringField('Звонок другу:', validators=[])
+
+    poin = []
+    poin.append(('50', '50'))
+    for i in range(1, 16):
+        poin.append((str(100 * i), str(100 * i)))
+
+    points = SelectField('Points:',choices = poin)
+
+
+
+    a_var = StringField('А:', validators=[])
+    b_var = StringField('Б:', validators=[])
+    c_var = StringField('В:', validators=[])
+    d_var = StringField('Г:', validators=[])
+
+
+    correct_answer = SelectField('Correct_answer:', choices=[('А','А'),('Б','Б'), ('В','В'),('Г','Г') ])
+
+    level = SelectField('LEVEL:', choices=[('1','1'),('2','2'), ('3','3'),('4','4'), ('5','5') ])
+
+
+
+    submit = SubmitField('Отправить')
+
+@app.route('/add_new_question', methods=['GET', 'POST'])
+def add_new_question():
+    form = ADD_NEW_QUESTION()
+    if form.validate_on_submit():
+        try:
+            category = int(form.category.data)
+            text = form.text.data.strip()
+            tip = form.tip.data.strip()
+            points = int(form.points.data)
+
+            a_var = form.a_var.data.strip()
+            b_var = form.b_var.data.strip()
+            c_var = form.c_var.data.strip()
+            d_var = form.d_var.data.strip()
+
+            correct_answer = form.correct_answer.data.strip()
+
+            flag = False
+            for i in string_variant:
+                if i in correct_answer:
+                    flag = True
+                    break
+
+            if not flag or len(correct_answer) > 1:
+                raise TypeError
+
+
+            level = int(form.level.data)
+            QUESTIONS.insert_by_category(category, text, a_var, b_var, c_var, d_var, tip, correct_answer,level, points)
+            return redirect('/delete_some_questions')
+        except:
+            return render_template('add_new_quest.html', form=form, categories=categories, code_id=3)
+
+    return render_template('add_new_quest.html', form=form, categories=categories, code_id=1)
+
+
+class UPDATE_QUESTION_FORM(FlaskForm):
+   # def __init__(self, name_category, text_question, call_friend, now_points, a, b, c,d, correct_ans, level_quest):
+        cat = []
+        for i in categories:
+            cat.append((str(i), categories[i]))
+
+        #category = SelectField('Category:',  choices = cat)
+
+        text = StringField('Text:',  validators=[])
+        tip = StringField('Звонок другу:', validators=[])
+
+        poin = []
+        poin.append(('50', '50'))
+        for i in range(1, 16):
+            poin.append((str(100 * i), str(100 * i)))
+
+        points = SelectField('Points:', choices = poin)
+
+
+
+        a_var = StringField('А:', validators=[])
+        b_var = StringField('Б:', validators=[])
+        c_var = StringField('В:', validators=[])
+        d_var = StringField('Г:', validators=[])
+
+
+        correct_answer = SelectField('Correct_answer:', choices=[('А','А'),('Б','Б'), ('В','В'),('Г','Г') ])
+
+        level = SelectField('LEVEL:',  choices=[('1','1'),('2','2'), ('3','3'),('4','4'), ('5','5') ])
+        submit = SubmitField('Отправить')
+
+
+
+
+@app.route('/update_question/<ind>/<id>', methods=['GET', 'POST'])
+def update_question_f(ind, id):
+
+    category_ = int(ind)
+    id_ = int(id)
+    name_category = categories[str(ind)]
+
+    quest = QUESTIONS.get(category_, id_)
+
+    #form = UPDATE_QUESTION_FORM(name_category, quest[1], quest[10], quest[13],quest[3], quest[4],quest[5],quest[6], quest[11], quest[12])
+    form = UPDATE_QUESTION_FORM(
+    #category = ind,
+    text = quest[1],
+    tip = quest[10],
+    points = quest[13],
+    a_var = quest[2],
+    b_var = quest[3],
+    c_var = quest[4],
+    d_var = quest[5],
+    correct_answer = quest[11],
+    level = quest[12]
+    )
+    if form.validate_on_submit():
+        text = form.text.data
+        call_friend = form.tip.data
+        points = form.points.data
+        a = form.a_var.data
+        b = form.b_var.data
+        c = form.c_var.data
+        d = form.d_var.data
+        correct_ans = form.correct_answer.data
+        level = form.level.data
+        QUESTIONS.update_question(category_, id, text, call_friend, points, a, b, c, d, correct_ans,level)
+        return redirect('/delete_some_questions')
+    return render_template('update_question.html', form=form, question_=quest, categories=categories, now_category=name_category)
+
+
+
+app.config['SECRET_KEY'] = 'e70lIUUoXRKlXc5VUBmiJ9Hdi'
 
 if __name__ =='__main__':
     app.run()
