@@ -164,22 +164,8 @@ def what_i_can_do(res, req, user_id):
         give_question_buttons(res, user_id)
     elif USERS[user_id]['game_status'] == 4:
         text_ += "Что вы хотите делать дальше?"
-        res['response']['buttons'] = []
+        give_change_or_toplist_buttons(res, user_id)
 
-        res['response']['buttons'].append({
-            'title': 'Остаться в текущей категории',
-            'hide': True
-        })
-
-        res['response']['buttons'].append({
-            'title': 'Сменить категорию',
-            'hide': True
-        })
-
-        res['response']['buttons'].append({
-            'title': 'Посмотреть топ-лист',
-            'hide': True
-        })
         USERS[user_id]['game_status'] = 5
 
     elif USERS[user_id]['game_status'] == 6:
@@ -485,25 +471,13 @@ def add_new_top_player(res, req, user_id):
 
 
 def what_the_next(res, req, user_id):
-    text_ = 'Вы хотите начать новую игру в новой категории, остаться в текущей, или может быть посмотреть топ-лист?'
+    text_ = 'Вы хотите начать новую игру в другой категории, остаться в текущей, или может быть посмотреть топ-лист?'
     USERS[user_id]['game_status'] = 5
     res['response']['text'] = text_
     res['response']['buttons'] = []
 
-    res['response']['buttons'].append({
-        'title': 'Остаться в текущей категории',
-        'hide': True
-    })
+    give_change_or_toplist_buttons(res, user_id)
 
-    res['response']['buttons'].append({
-        'title': 'Сменить категорию',
-        'hide': True
-    })
-
-    res['response']['buttons'].append({
-        'title': 'Посмотреть топ-лист',
-        'hide': True
-    })
     return
 
 def change_category_or_toplist(res, req, user_id):
@@ -539,22 +513,8 @@ def change_category_or_toplist(res, req, user_id):
         if len(USERS[user_id][now_category]) == 0:
             text_ = 'Увы, но в текущей категории кончились вопросы для вас.'
             res['response']['text'] = text_
-            res['response']['buttons'] = []
+            give_change_or_toplist_buttons(res, user_id)
 
-            res['response']['buttons'].append({
-                'title': 'Остаться в текущей категории',
-                'hide': True
-            })
-
-            res['response']['buttons'].append({
-                'title': 'Сменить категорию',
-                'hide': True
-            })
-
-            res['response']['buttons'].append({
-                'title': 'Посмотреть топ-лист',
-                'hide': True
-            })
             return
 
 
@@ -595,21 +555,7 @@ def change_category_or_toplist(res, req, user_id):
             text_ += str(i + 1) + ') ' + TOPLIST[i][1] + ' - ' + str(TOPLIST[i][0]) + '\n'
         res['response']['text'] = 'Топ игроков игры "Интеллектуальный Олимп"\n\n' + text_
 
-        res['response']['buttons'] = []
-        res['response']['buttons'].append({
-            'title': 'Остаться в текущей категории',
-            'hide': True
-        })
-
-        res['response']['buttons'].append({
-            'title': 'Сменить категорию',
-            'hide': True
-        })
-
-        res['response']['buttons'].append({
-            'title': 'Посмотреть топ-лист',
-            'hide': True
-        })
+        give_change_or_toplist_buttons(res, user_id)
 
         return
 
@@ -617,21 +563,8 @@ def change_category_or_toplist(res, req, user_id):
     text_ = 'Простите, но я не совсем поняла вас, повторите ещё раз.'
     res['response']['text'] = text_
 
-    res['response']['buttons'] = []
-    res['response']['buttons'].append({
-        'title': 'Остаться в категории',
-        'hide': True
-    })
+    give_change_or_toplist_buttons(res, user_id)
 
-    res['response']['buttons'].append({
-        'title': 'Сменить категорию',
-        'hide': True
-    })
-
-    res['response']['buttons'].append({
-        'title': 'Посмотреть топ-лист',
-        'hide': True
-    })
     return
 
 def give_hint(res, req, user_id):
@@ -996,6 +929,25 @@ def update_question_f(id):
     return render_template('update_question.html', form=form, question_=quest, categories=categories)
 
 
+
+def give_change_or_toplist_buttons(res, user_id):
+    res['response']['buttons'] = []
+
+    res['response']['buttons'].append({
+        'title': 'Остаться в кат.',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Поменять кат.',
+        'hide': True
+    })
+
+    res['response']['buttons'].append({
+        'title': 'Посмотреть топ-лист',
+        'hide': True
+    })
+    return
 
 
 
