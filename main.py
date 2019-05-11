@@ -944,7 +944,7 @@ def give_change_or_toplist_buttons(res, user_id):
     })
 
     res['response']['buttons'].append({
-        'title': 'Посмотреть топ-лист',
+        'title': 'Топ-лист',
         'hide': True
     })
     return
